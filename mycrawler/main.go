@@ -1,9 +1,12 @@
 package main
 
 import (
+	"encoding/csv"
 	"fmt"
 	"io/ioutil"
+	"log"
 	"net/http"
+	"os"
 	"strings"
 	"time"
 
@@ -16,6 +19,18 @@ import (
 func main() {
 	baseURL := "http://www.atomy.com"
 	productURL := baseURL + "/tw/Home/Product"
+	file, err := os.Create("result.csv")
+
+	checkError("Cannot create file", err)
+	defer file.Close()
+
+	writer := csv.NewWriter(file)
+	defer writer.Flush()
+
+	csvTitle := []string{
+		"名稱", "價格", "PV", "連結",
+	}
+	writer.Write(csvTitle)
 
 	for i := 1; i < 7; i++ {
 		time.Sleep(time.Duration(1) * time.Second)
@@ -44,6 +59,13 @@ func main() {
 			pointSpan := points[index].Find("span", "class", "numberic")
 			LinkURL := fmt.Sprintf("%s/%s", productURL, strings.Split(titleA.Attrs()["href"], "./")[1])
 
+			value := []string{
+				titleA.Text(), priceSpan.Text(), pointSpan.Text(), LinkURL,
+			}
+
+			err := writer.Write(value)
+			checkError("Cannot write to file", err)
+
 			product := model.Products{
 				Name:  titleA.Text(),
 				Price: priceSpan.Text(),
@@ -64,5 +86,10 @@ func main() {
 			}
 		}
 	}
+}
 
+func checkError(message string, err error) {
+	if err != nil {
+		log.Fatal(message, err)
+	}
 }
