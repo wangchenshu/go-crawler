@@ -17,9 +17,12 @@ import (
 )
 
 func main() {
-	// saveProducts()
+	saveProducts()
 	saveEduCenter()
 }
+
+// WriteToSQL - WriteToSQL
+const WriteToSQL = false
 
 func saveEduCenter() {
 	baseURL := "http://www.atomy.com/tw/Home/About/EduCenter"
@@ -51,8 +54,6 @@ func saveEduCenter() {
 		var centerPhone string
 		var centerDate string
 
-		fmt.Println(centerName)
-
 		tds := tr.FindAll("td")
 
 		for k, v := range tds {
@@ -74,7 +75,9 @@ func saveEduCenter() {
 		checkError("Cannot write to file", err)
 
 		fmt.Println("------")
-		saveCenter(centerName, centerAddr, centerPhone, centerDate)
+		if WriteToSQL {
+			saveEduCenterToSQL(centerName, centerAddr, centerPhone, centerDate)
+		}
 	}
 }
 
@@ -128,12 +131,14 @@ func saveProducts() {
 			err := writer.Write(value)
 			checkError("Cannot write to file", err)
 
-			saveProduct(productName, productPrice, productPoint, LinkURL)
+			if WriteToSQL {
+				saveProductToSQL(productName, productPrice, productPoint, LinkURL)
+			}
 		}
 	}
 }
 
-func saveProduct(productName string, productPrice string, productPoint string, LinkURL string) {
+func saveProductToSQL(productName string, productPrice string, productPoint string, LinkURL string) {
 	product := model.Products{
 		Name:  productName,
 		Price: productPrice,
@@ -154,7 +159,7 @@ func saveProduct(productName string, productPrice string, productPoint string, L
 	}
 }
 
-func saveCenter(centerName string, centerAddr string, centerPhone string, centerDate string) {
+func saveEduCenterToSQL(centerName string, centerAddr string, centerPhone string, centerDate string) {
 	center := model.Centers{}
 	db.Db.Where("name = ?", centerName).Find(&center)
 	if center.ID == 0 {
