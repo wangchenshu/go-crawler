@@ -1,7 +1,7 @@
 package model
 
 // Products -
-type Products struct {
+type Product struct {
 	ID    int    `json:"id" gorm:"column:id"`
 	Name  string `json:"name" gorm:"type:varchar(255)"`
 	Price string `json:"price" gorm:"type:varchar(100)"`
@@ -11,10 +11,18 @@ type Products struct {
 }
 
 // Centers -
-type Centers struct {
+type Center struct {
 	ID      int    `json:"id" gorm:"column:id"`
 	Name    string `json:"name" gorm:"type:varchar(255)"`
 	Address string `json:"address" gorm:"type:varchar(255)"`
 	Phone   string `json:"phone" gorm:"type:varchar(100)"`
 	Date    string `json:"date" gorm:"type:varchar(100)"`
+}
+
+// ProductCommon -
+type ProductCommon struct {
+	Name  string
+	Price string
+	Point string
+	Link  string
 }

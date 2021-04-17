@@ -14,12 +14,9 @@ import (
 
 	"go-crawler/mycrawler/db"
 	"go-crawler/mycrawler/model"
-)
 
-func main() {
-	saveProducts()
-	saveEduCenter()
-}
+	"github.com/360EntSecGroup-Skylar/excelize/v2"
+)
 
 // WriteToSQL - WriteToSQL
 const WriteToSQL = false
@@ -60,13 +57,16 @@ func saveEduCenter() {
 			switch k {
 			case 0:
 				centerAddr = v.Text()
-				fmt.Println("地址: ", centerAddr)
+				// Debug
+				// fmt.Println("地址: ", centerAddr)
 			case 1:
 				centerPhone = v.Text()
-				fmt.Println("電話號碼: ", centerPhone)
+				// Debug
+				// fmt.Println("電話號碼: ", centerPhone)
 			case 2:
 				centerDate = v.Text()
-				fmt.Println("設立日期: ", centerDate)
+				// Debug
+				// fmt.Println("設立日期: ", centerDate)
 			}
 		}
 
@@ -74,16 +74,19 @@ func saveEduCenter() {
 		err := writer.Write(value)
 		checkError("Cannot write to file", err)
 
-		fmt.Println("------")
+		// Debug
+		// fmt.Println("------")
 		if WriteToSQL {
 			saveEduCenterToSQL(centerName, centerAddr, centerPhone, centerDate)
 		}
 	}
 }
 
-func saveProducts() {
+func saveProducts() []model.ProductCommon {
 	baseURL := "http://www.atomy.com"
 	productURL := baseURL + "/tw/Home/Product"
+	var products []model.ProductCommon
+
 	file, err := os.Create("result.csv")
 
 	checkError("Cannot create file", err)
@@ -122,24 +125,36 @@ func saveProducts() {
 			titleA := title.Find("a")
 			priceSpan := prices[index].Find("span", "class", "numberic")
 			pointSpan := points[index].Find("span", "class", "numberic")
-			productName := titleA.Text()
-			productPrice := priceSpan.Text()
-			productPoint := pointSpan.Text()
-			LinkURL := fmt.Sprintf("%s/%s", productURL, strings.Split(titleA.Attrs()["href"], "./")[1])
+			name := titleA.Text()
+			price := priceSpan.Text()
+			point := pointSpan.Text()
+			link := fmt.Sprintf("%s/%s", productURL, strings.Split(titleA.Attrs()["href"], "./")[1])
 
-			value := []string{productName, productPrice, productPoint, LinkURL}
+			// 定義結構
+			p := model.ProductCommon{
+				Name:  name,
+				Price: price,
+				Point: point,
+				Link:  link,
+			}
+			// 增加
+			products = append(products, p)
+
+			value := []string{name, price, point, link}
 			err := writer.Write(value)
 			checkError("Cannot write to file", err)
 
 			if WriteToSQL {
-				saveProductToSQL(productName, productPrice, productPoint, LinkURL)
+				saveProductToSQL(name, price, point, link)
 			}
 		}
 	}
+
+	return products
 }
 
 func saveProductToSQL(productName string, productPrice string, productPoint string, LinkURL string) {
-	product := model.Products{
+	product := model.Product{
 		Name:  productName,
 		Price: productPrice,
 		Point: productPoint,
@@ -147,10 +162,10 @@ func saveProductToSQL(productName string, productPrice string, productPoint stri
 	}
 	db.Db.Model(&product).Where("name = ?", productName).Update("link", LinkURL)
 
-	product1 := model.Products{}
+	product1 := model.Product{}
 	db.Db.Where("name = ?", productName).Find(&product1)
 	if product1.ID == 0 {
-		fmt.Println("find new product: ", productName)
+		// fmt.Println("find new product: ", productName)
 		product1.Name = productName
 		product1.Price = productPrice
 		product1.Point = productPoint
@@ -160,7 +175,7 @@ func saveProductToSQL(productName string, productPrice string, productPoint stri
 }
 
 func saveEduCenterToSQL(centerName string, centerAddr string, centerPhone string, centerDate string) {
-	center := model.Centers{}
+	center := model.Center{}
 	db.Db.Where("name = ?", centerName).Find(&center)
 	if center.ID == 0 {
 		center.Name = centerName
@@ -175,4 +190,44 @@ func checkError(message string, err error) {
 	if err != nil {
 		log.Fatal(message, err)
 	}
+}
+
+func writeProductToExcel(products []model.ProductCommon) error {
+	// Debug
+	// fmt.Println(products)
+
+	sheetName := "Sheet1"
+	// 開新檔
+	f := excelize.NewFile()
+	// 定義 sheet name
+	index := f.NewSheet(sheetName)
+	// 設定 title
+	f.SetCellValue(sheetName, "A1", "名稱")
+	f.SetCellValue(sheetName, "B1", "價格")
+	f.SetCellValue(sheetName, "C1", "PV")
+	f.SetCellValue(sheetName, "D1", "連結")
+
+	// 處理每筆資料
+	for i, p := range products {
+		f.SetCellValue(sheetName, fmt.Sprintf("A%d", i+2), p.Name)
+		f.SetCellValue(sheetName, fmt.Sprintf("B%d", i+2), p.Price)
+		f.SetCellValue(sheetName, fmt.Sprintf("C%d", i+2), p.Point)
+		f.SetCellValue(sheetName, fmt.Sprintf("D%d", i+2), p.Link)
+	}
+
+	f.SetActiveSheet(index)
+
+	// 儲存檔案
+	if err := f.SaveAs("product.xlsx"); err != nil {
+		fmt.Println(err)
+		return err
+	}
+
+	return nil
+}
+
+func main() {
+	products := saveProducts()
+	saveEduCenter()
+	writeProductToExcel(products)
 }
